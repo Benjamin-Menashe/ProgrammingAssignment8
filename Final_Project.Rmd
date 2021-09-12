@@ -1,0 +1,87 @@
+---
+title: "Final Project Machine Learning"
+author: "Benjamin Menashe"
+date: "September 12, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+The goal of this project is to create a machine learning model which uses the personal activity data in order to predicit the type of exercise. We used and comapred a decision tree model and a random forest model in order to do so. 
+
+## Preparing the Data
+Load the libraries and data
+```{r}
+library(caret)
+library(kernlab)
+set.seed(314)
+train <- read.csv("pml-training.csv", na.strings= c("","NA"))
+test <- read.csv("pml-testing.csv", na.strings= c("","NA"))
+```
+
+Since many of our columns are mostly empty (and thus provide no information), we will remove them.
+```{r}
+trainCln <- train[,!is.na(train[1,])]
+trainCln[,1] <- NULL
+testCln <- test[,!is.na(train[1,])]
+testCln[,1] <- NULL
+```
+
+Now we split the training data into training and validation sets. 
+```{r}
+trainInd <- createDataPartition(y=trainCln$classe, p=0.75, list=F)
+trainFnl <- trainCln[trainInd,]
+trainVld <- trainCln[-trainInd,]
+```
+
+Interim summary - we loaded the data, created a sub-training set and a validation set for training our models, and saved aside a test set for testing our model. We can now move to creating our model.
+
+## Training the Model
+
+I decided to make a decision tree model and a support vector machine model.
+
+#### Decision tree
+First we use the training data to create the decision tree.
+```{r, cache = T}
+mdl1 <- train(classe ~ ., data=trainFnl, method="rpart")
+plot(mdl1$finalModel)
+text(mdl1$finalModel, cex = .8)
+```
+
+Now we predict on the validation set.
+```{r}
+pred1 <- predict(mdl1, trainVld)
+cm1 <- confusionMatrix(pred1, factor(trainVld$classe))
+cm1
+```
+
+The accuracy is about 0.6 and the out-of-sample error is about 0.4. Not too good...
+
+### SVM
+First we use the training data to create the SVM model.
+```{r, cache = T}
+mdl2 <- train(classe ~ ., data=trainFnl, method="svmLinear", tuneLength = 4)
+```
+
+Now we predict on the validation set
+```{r}
+pred2 <- predict(mdl2, trainVld)
+cm2 <- confusionMatrix(pred2, factor(trainVld$classe))
+cm2
+```
+
+The accuracy is 0.9 which means the out-of-sample error is about 0.1. That's much better than before!
+
+
+## Test Set
+
+Finally, we can select our SVM model and use it to predict on our test set
+```{r}
+pred <- predict(mdl2, testCln)
+print(pred)
+```
